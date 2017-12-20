@@ -11,6 +11,7 @@
  */
 
 import AppAuth
+import Vinculum
 
 // Current version of the SDK
 let VERSION = "0.3.0"
@@ -20,6 +21,9 @@ public var currentAuthorizationFlow: OIDAuthorizationFlowSession?
 
 // Cache Okta.plist for reference
 public var configuration: [String: Any]?
+
+// Cache the Discovery Metadata
+public var wellKnown: [String: Any]?
 
 // Token manager
 public var tokens: OktaTokenManager?
@@ -32,6 +36,26 @@ public func login(_ username: String, password: String) -> Login {
 public func login() -> Login {
     // Authenticate via authorization code flow
     return Login()
+}
+
+public func isAuthenticated() -> Bool {
+    // Restore state
+    guard let encodedAuthStateItem = try? Vinculum.get("OktaAuthStateTokenManager"),
+        let encodedAuthState = encodedAuthStateItem else {
+        return false
+    }
+
+    guard let previousState = NSKeyedUnarchiver
+        .unarchiveObject(with: encodedAuthState.value) as? OktaTokenManager else { return false }
+
+    tokens = previousState
+
+    let accessToken = tokens?.accessToken
+    let idToken = tokens?.idToken
+    if idToken != nil || accessToken != nil {
+        return true
+    }
+    return false
 }
 
 public func introspect() -> Introspect {
@@ -51,13 +75,12 @@ public func userinfo(_ callback: @escaping ([String:Any]?, OktaError?) -> Void) 
 
 public func refresh() {
     // Get new tokens
-    tokens?.authState?.setNeedsTokenRefresh()
-    tokens?.authState?.performAction(freshTokens: { accessToken, idToken, error in
+    tokens?.authState.setNeedsTokenRefresh()
+    tokens?.authState.performAction(freshTokens: { accessToken, idToken, error in
         if error != nil {
             print("Error fetching fresh tokens: \(error!.localizedDescription)")
             return
         }
-        tokens?.accessToken = accessToken
     })
 }
 

@@ -13,10 +13,17 @@ class ViewController: UIViewController {
 
     @IBOutlet weak var tokenView: UITextView!
 
-    override func viewDidLoad() { super.viewDidLoad() }
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        if OktaAuth.isAuthenticated() {
+            // If there is a valid idToken or accessToken
+            // build the token view.
+            self.buildTokenTextView()
+        }
+    }
 
     @IBAction func loginButton(_ sender: Any) {
-        if tokens == nil { self.loginCodeFlow() }
+        self.loginCodeFlow()
     }
 
     @IBAction func refreshTokens(_ sender: Any) {
@@ -31,10 +38,14 @@ class ViewController: UIViewController {
 
     @IBAction func userInfoButton(_ sender: Any) {
         OktaAuth.userinfo { response, error in
-            if error != nil { print("Error: \(error!)") }
+            if error != nil {
+                print("Error: \(error!)")
+            }
             if response != nil {
                 var userInfoText = ""
-                response?.forEach { userInfoText += ("\($0): \($1)") }
+                response?.forEach {
+                    userInfoText += ("\($0): \($1)")
+                }
                 self.updateUI(updateText: userInfoText)
             }
         }
@@ -48,8 +59,12 @@ class ViewController: UIViewController {
         OktaAuth
             .introspect()
             .validate(accessToken!) { response, error in
-                if error != nil { self.updateUI(updateText: "Error: \(error!)") }
-                if let isActive = response { self.updateUI(updateText: "Is the AccessToken valid? \(isActive)") }
+                if error != nil {
+                    self.updateUI(updateText: "Error: \(error!)")
+                }
+                if let isActive = response {
+                    self.updateUI(updateText: "Is the AccessToken valid? \(isActive)")
+                }
         }
     }
 
@@ -59,8 +74,12 @@ class ViewController: UIViewController {
         if accessToken == nil { return }
 
         OktaAuth.revoke(accessToken!) { response, error in
-            if error != nil { self.updateUI(updateText: "Error: \(error!)") }
-            if response != nil { self.updateUI(updateText: "AccessToken was revoked") }
+            if error != nil {
+                self.updateUI(updateText: "Error: \(error!)")
+            }
+            if response != nil {
+                self.updateUI(updateText: "AccessToken was revoked")
+            }
         }
     }
 
@@ -68,37 +87,38 @@ class ViewController: UIViewController {
         OktaAuth
             .login()
             .start(self) { response, error in
-                if error != nil { print(error!) }
-                if let authResponse = response {
-                    // Store tokens in keychain
-                    tokens?.set(value: authResponse.accessToken!, forKey: "accessToken")
-                    tokens?.set(value: authResponse.idToken!, forKey: "idToken")
+                if error != nil {
+                    print(error!)
+                }
+                if let _ = response {
+                    // Tokens are stored securely in keychain
                     self.buildTokenTextView()
                 }
         }
     }
 
     func updateUI(updateText: String) {
-        DispatchQueue.main.async { self.tokenView.text = updateText }
+        DispatchQueue.main.async {
+            self.tokenView.text = updateText
+        }
     }
 
     func buildTokenTextView() {
-        if tokens == nil {
+        guard let currentTokens = tokens else {
             tokenView.text = ""
             return
         }
 
         var tokenString = ""
-
-        if let accessToken = tokens?.accessToken {
+        if let accessToken = currentTokens.accessToken {
             tokenString += ("\nAccess Token: \(accessToken)\n")
         }
 
-        if let idToken = tokens?.idToken {
+        if let idToken = currentTokens.idToken {
             tokenString += "\nidToken Token: \(idToken)\n"
         }
 
-        if let refreshToken = tokens?.refreshToken {
+        if let refreshToken = currentTokens.refreshToken {
             tokenString += "\nrefresh Token: \(refreshToken)\n"
         }
 

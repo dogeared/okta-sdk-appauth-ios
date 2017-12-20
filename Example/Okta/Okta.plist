@@ -10,8 +10,6 @@
 	</array>
 	<key>redirectUri</key>
 	<string>com.okta.example:/callback</string>
-	<key>clientSecret</key>
-	<string></string>
 	<key>clientId</key>
 	<string>{clientId}</string>
 	<key>issuer</key>

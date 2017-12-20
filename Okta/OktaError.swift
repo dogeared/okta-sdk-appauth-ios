@@ -12,6 +12,7 @@
 
 public enum OktaError: Error {
     case APIError(String)
+    case NoBearerToken
     case NoClientSecret(String)
     case NoDiscoveryEndpoint
     case NoIntrospectionEndpoint
@@ -26,6 +27,8 @@ extension OktaError: LocalizedError {
         switch self {
         case .APIError(error: let error):
             return NSLocalizedString(error, comment: "")
+        case .NoBearerToken:
+            return NSLocalizedString("Missing Bearer token. You must authenticate first.", comment: "")
         case .NoClientSecret(plist: let plist):
             return NSLocalizedString(
                 "ClientSecret not included in PList configuration file: " +

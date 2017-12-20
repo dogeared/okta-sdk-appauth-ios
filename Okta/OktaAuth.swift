@@ -11,6 +11,7 @@
  */
 
 import AppAuth
+import Vinculum
 
 public struct OktaAuthorization {
 
@@ -36,9 +37,17 @@ public struct OktaAuthorization {
             OktaAuth.currentAuthorizationFlow = OIDAuthState.authState(byPresenting: request, presenting: view){
                 authorizationResponse, error in
                 
-                if authorizationResponse != nil {
+                if let response = authorizationResponse {
                     // Return the tokens
-                    callback(OktaTokenManager(authState: authorizationResponse), nil)
+                    let tokenManager = OktaTokenManager(
+                        authState: response,
+                           issuer: config["issuer"] as! String,
+                         clientId: config["clientId"] as! String
+                    )
+
+                    // Set the local cache and write to storage
+                    self.storeAuthState(tokenManager)
+                    callback(tokenManager, nil)
                 } else {
                     callback(nil, .APIError("Authorization Error: \(error!.localizedDescription)"))
                 }
@@ -80,8 +89,17 @@ public struct OktaAuthorization {
                             authorizationResponse: nil,
                                     tokenResponse: authorizationResponse,
                              registrationResponse: nil
-                        )
-                    callback(OktaTokenManager(authState: authState), nil)
+                    )
+
+                    let tokenManager = OktaTokenManager(
+                        authState: authState,
+                           issuer: config["issuer"] as! String,
+                         clientId: config["clientId"] as! String
+                    )
+
+                    // Set the local cache and write to storage
+                    self.storeAuthState(tokenManager)
+                    callback(tokenManager, nil)
                 }
             }
         }
@@ -101,7 +119,22 @@ public struct OktaAuthorization {
                     "check your PList configuration"
                 return callback(nil, .APIError(responseError))
             }
+            // Cache the well-known endpoint response
+            OktaAuth.wellKnown = dictResponse
             return callback(OIDServiceConfiguration(discoveryDocument: oidcConfig), nil)
+        }
+    }
+    
+    func storeAuthState(_ tokenManager: OktaTokenManager) {
+        // Encode and store the current auth state and
+        // cache the current tokens
+        OktaAuth.tokens = tokenManager
+
+        let authStateData = NSKeyedArchiver.archivedData(withRootObject: tokenManager)
+        do {
+            try Vinculum.set(key: "OktaAuthStateTokenManager", value: authStateData, accessibility: tokenManager.accessibility)
+        } catch let error {
+            print("Error: \(error)")
         }
     }
 }
