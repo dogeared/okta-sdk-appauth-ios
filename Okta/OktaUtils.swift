@@ -14,47 +14,39 @@ import Foundation
 
 open class Utils: NSObject {
 
-    open class func getPlistConfiguration() -> [String: Any]? {
+    open class func getPlistConfiguration() -> [String: String]? {
         // Parse Okta.plist to build the authorization request
         return getPlistConfiguration(forResourceName: "Okta")
     }
 
-    open class func getPlistConfiguration(forResourceName resourceName: String) -> [String: Any]? {
+    open class func getPlistConfiguration(forResourceName resourceName: String) -> [String: String]? {
         // Parse Okta.plist to build the authorization request
 
         if let path = Bundle.main.url(forResource: resourceName, withExtension: "plist"),
             let data = try? Data(contentsOf: path) {
             if let result = try? PropertyListSerialization
-                .propertyList(
-                       from: data,
-                    options: [],
-                     format: nil
-                ) as? [String: Any] {
-                    OktaAuth.configuration = result
-                    return result
+                .propertyList(from: data, options: [], format: nil) as? [String: String] {
+                OktaAuth.configuration = result
+                return result
             }
         }
         return nil
     }
 
-    internal class func scrubScopes(_ scopes: Any?) -> [String]{
+    internal class func scrubScopes(_ scopes: String?) -> [String]{
         /**
          Perform scope scrubbing here.
 
          Verify that scopes:
-            - Are in list format
+            - Are in string format separated by " "
             - Contain "openid"
         */
 
         var scrubbedScopes = [String]()
 
-        if let stringScopes = scopes as? String {
+        if let stringScopes = scopes {
             // Scopes are formatted as a string
             scrubbedScopes = stringScopes.components(separatedBy: " ")
-        }
-
-        if let arrayScopes = scopes as? [String] {
-            scrubbedScopes = arrayScopes
         }
 
         if !scrubbedScopes.contains("openid") {

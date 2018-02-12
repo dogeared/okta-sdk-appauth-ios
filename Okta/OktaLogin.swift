@@ -49,7 +49,7 @@ public struct Login {
             // Get client configuratin from Okta.plist
             if let config = Utils.getPlistConfiguration(forResourceName: plist) {
                 // Verify the ClientSecret was included
-                if (config["clientSecret"] as! String) == "" {
+                if config["clientSecret"] == "" {
                     callback(nil, .NoClientSecret(plist))
                 }
 

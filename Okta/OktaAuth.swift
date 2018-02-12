@@ -14,10 +14,16 @@ import AppAuth
 
 public struct OktaAuthorization {
 
-    func authCodeFlow(_ config: [String: Any], view: UIViewController,
+    func authCodeFlow(_ config: [String: String], view: UIViewController,
                       callback: @escaping (OktaTokenManager?, OktaError?) -> Void) {
         // Discover Endpoints
-        getMetadataConfig(URL(string: config["issuer"] as! String)) { oidConfig, error in
+        guard let issuer = config["issuer"],
+            let clientId = config["clientId"],
+            let redirectUri = config["redirectUri"] else {
+            return callback(nil, .MissingConfigurationValues)
+        }
+
+        getMetadataConfig(URL(string: issuer)) { oidConfig, error in
             if error != nil {
                 return callback(nil, error!)
             }
@@ -25,9 +31,9 @@ public struct OktaAuthorization {
             // Build the Authentication request
             let request = OIDAuthorizationRequest(
                        configuration: oidConfig!,
-                            clientId: config["clientId"] as! String,
+                            clientId: clientId,
                               scopes: Utils.scrubScopes(config["scopes"]),
-                         redirectURL: URL(string: config["redirectUri"] as! String)!,
+                         redirectURL: URL(string: redirectUri)!,
                         responseType: OIDResponseTypeCode,
                 additionalParameters: nil
             )
@@ -46,27 +52,34 @@ public struct OktaAuthorization {
         }
     }
 
-    func passwordFlow(_ config: [String: Any], credentials: [String: String]?, view: UIViewController,
+    func passwordFlow(_ config: [String: String], credentials: [String: String]?, view: UIViewController,
                       callback: @escaping (OktaTokenManager?, OktaError?) -> Void) {
         // Discover Endpoints
-        getMetadataConfig(URL(string: config["issuer"] as! String)) { oidConfig, error in
+        guard let issuer = config["issuer"],
+            let clientId = config["clientId"],
+            let clientSecret = config["clientSecret"],
+            let redirectUri = config["redirectUri"] else {
+                return callback(nil, .MissingConfigurationValues)
+        }
+
+        getMetadataConfig(URL(string: issuer)) { oidConfig, error in
             if error != nil {
                 return callback(nil, error!)
             }
 
             // Build the Authentication request
             let request = OIDTokenRequest(
-                           configuration: oidConfig!,
-                               grantType: OIDGrantTypePassword,
-                       authorizationCode: nil,
-                             redirectURL: URL(string: config["redirectUri"] as! String)!,
-                                clientID: config["clientId"] as! String,
-                            clientSecret: (config["clientSecret"] as! String),
-                                   scope: Utils.scrubScopes(config["scopes"]).joined(separator: " "),
-                            refreshToken: nil,
-                            codeVerifier: nil,
-                    additionalParameters: credentials
-                )
+                       configuration: oidConfig!,
+                           grantType: OIDGrantTypePassword,
+                   authorizationCode: nil,
+                         redirectURL: URL(string: redirectUri)!,
+                            clientID: clientId,
+                        clientSecret: clientSecret,
+                              scopes: Utils.scrubScopes(config["scopes"]),
+                        refreshToken: nil,
+                        codeVerifier: nil,
+                additionalParameters: credentials
+            )
 
             // Start the authorization flow
             OIDAuthorizationService.perform(request) { authorizationResponse, responseError in
