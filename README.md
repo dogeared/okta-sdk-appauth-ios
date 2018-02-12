@@ -63,12 +63,8 @@ Create an `Okta.plist` file in your application's bundle with the following fiel
 	<string>{clientIdValue}</string>
 	<key>redirectUri</key>
 	<string>{redirectUrlValue}</string>
-        <key>scopes</key>
-	<array>
-		<string>offline_access</string>
-		<string>openid</string>
-		<string>profile</string>
-	</array>
+    <key>scopes</key>
+    <string>openid profile offline_access</string>
 </dict>
 </plist>
 ```
