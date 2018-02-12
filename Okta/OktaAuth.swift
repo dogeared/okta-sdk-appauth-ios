@@ -36,9 +36,14 @@ public struct OktaAuthorization {
             OktaAuth.currentAuthorizationFlow = OIDAuthState.authState(byPresenting: request, presenting: view){
                 authorizationResponse, error in
                 
-                if authorizationResponse != nil {
+                if let response = authorizationResponse {
                     // Return the tokens
-                    callback(OktaTokenManager(authState: authorizationResponse), nil)
+                    callback(
+                        OktaTokenManager(
+                            authState: response,
+                            issuer: config["issuer"] as! String,
+                            clientId: config["clientId"] as! String
+                        ), nil)
                 } else {
                     callback(nil, .apiError(error: "Authorization Error: \(error!.localizedDescription)"))
                 }
@@ -81,7 +86,7 @@ public struct OktaAuthorization {
                                     tokenResponse: authorizationResponse,
                              registrationResponse: nil
                         )
-                    callback(OktaTokenManager(authState: authState), nil)
+                    callback(OktaTokenManager(authState: authState, issuer: config["issuer"] as! String, clientId: config["clientId"] as! String), nil)
                 }
             }
         }
@@ -101,6 +106,9 @@ public struct OktaAuthorization {
                     "check your PList configuration"
                 return callback(nil, .apiError(error: responseError))
             }
+            // Cache the well-known endpoint response
+            OktaAuth.wellKnown = dictResponse
+
             return callback(OIDServiceConfiguration(discoveryDocument: oidcConfig), nil)
         }
     }

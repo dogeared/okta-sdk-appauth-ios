@@ -22,6 +22,9 @@ public var currentAuthorizationFlow: OIDAuthorizationFlowSession?
 // Cache Okta.plist for reference
 public var configuration: [String: Any]?
 
+// Cache the Discovery Metadata
+public var wellKnown: [String: Any]?
+
 // Token manager
 public var tokens: OktaTokenManager?
 
@@ -42,17 +45,28 @@ public func isAuthenticated() -> Bool {
     if accessToken == nil && idToken == nil { return false }
 
     // Restore state
-    guard let encodedAuthStateItem = try? Vinculum.get("appAuthState"), let encodedAuthState = encodedAuthStateItem else {
+    guard let encodedAuthStateItem = try? Vinculum.get("OktaAuthState"), let encodedAuthState = encodedAuthStateItem else {
+        return false
+    }
+    
+    guard let encodedConfigStateItem = try? Vinculum.get("OktaAuthConfig"), let encodedConfigState = encodedConfigStateItem else {
         return false
     }
 
     guard let previousState = NSKeyedUnarchiver
         .unarchiveObject(with: encodedAuthState.value) as? OIDAuthState else { return false }
 
-    tokens = OktaTokenManager(authState: previousState)
+    guard let previousConfig = NSKeyedUnarchiver
+        .unarchiveObject(with: encodedConfigState.value) as? [String: String] else { return false }
+
+    tokens = OktaTokenManager(
+        authState: previousState,
+        issuer: previousConfig["issuer"]!,
+        clientId: previousConfig["clientId"]!
+    )
 
     // Renew the config
-    configuration = Utils.getPlistConfiguration()
+//    configuration = Utils.getPlistConfiguration()
     return true
 }
 
@@ -73,13 +87,12 @@ public func userinfo(_ callback: @escaping ([String:Any]?, OktaError?) -> Void) 
 
 public func refresh() {
     // Get new tokens
-    tokens?.authState?.setNeedsTokenRefresh()
-    tokens?.authState?.performAction(freshTokens: { accessToken, idToken, error in
+    tokens?.authState.setNeedsTokenRefresh()
+    tokens?.authState.performAction(freshTokens: { accessToken, idToken, error in
         if error != nil {
             print("Error fetching fresh tokens: \(error!.localizedDescription)")
             return
         }
-        tokens?.accessToken = accessToken
     })
 }
 

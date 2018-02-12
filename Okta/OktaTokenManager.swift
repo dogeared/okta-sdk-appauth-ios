@@ -15,25 +15,62 @@ import Vinculum
 
 open class OktaTokenManager: NSObject {
 
-    open var authState: OIDAuthState?
-    open var idToken: String?
-    open var refreshToken: String?
-    open var accessToken: String?
+    private var _idToken: String? = nil
 
-    public init(authState: OIDAuthState?) {
+    open var authState: OIDAuthState
+    open var issuer: String
+    open var clientId: String
+
+    open var idToken: String? {
+        get { return self._idToken }
+    }
+
+    open var refreshToken: String? {
+        get {
+            guard let token = self.authState.refreshToken else { return nil }
+            return token
+        }
+    }
+
+    open var accessToken: String? {
+        get {
+            guard let token = self.authState.lastTokenResponse?.accessToken else { return nil }
+            return token
+        }
+    }
+
+    public init(authState: OIDAuthState, issuer: String, clientId: String) {
+        self.authState = authState
+        self.issuer = issuer
+        self.clientId = clientId
+
         super.init()
 
-        if authState == nil { return }
-        self.authState = authState!
-        self.accessToken = authState?.lastTokenResponse?.accessToken
-        self.idToken = authState?.lastTokenResponse?.idToken
-        self.refreshToken = authState?.lastTokenResponse?.refreshToken
+        // Since the idToken isn't stored in the last tokenResponse after refresh,
+        // refer to the cached keychain version.
+        if let prevIdToken = authState.lastTokenResponse?.idToken {
+            self._idToken = prevIdToken
+            try? Vinculum.set(key: "idToken", value: prevIdToken)
+        } else {
+            guard let prevIdToken = try? Vinculum.get("idToken")?.getString() else {
+                self._idToken = nil
+                return
+            }
+            self._idToken = prevIdToken
+        }
 
         OktaAuth.tokens = self
 
         // Encode and store the current auth state
-        let authStateData = NSKeyedArchiver.archivedData(withRootObject: authState!)
-        self.setData(value: authStateData, forKey: "appAuthState")
+        let authStateData = NSKeyedArchiver.archivedData(withRootObject: authState)
+        self.setData(value: authStateData, forKey: "OktaAuthState")
+
+        // Store the current configuration
+        let config = [ "issuer": issuer, "clientId": clientId ]
+        let configData = NSKeyedArchiver.archivedData(withRootObject: config)
+        self.setData(value: configData, forKey: "OktaAuthConfig")
+
+        OktaAuth.configuration = config
     }
 
     public func setData(value: Data, forKey: String) {

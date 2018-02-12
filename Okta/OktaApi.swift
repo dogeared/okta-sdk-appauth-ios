@@ -32,6 +32,7 @@ open class OktaApi: NSObject {
             guard let data = data, error == nil else {
                 return callback(nil, .apiError(error: "\(String(describing: error?.localizedDescription))"))
             }
+
             let responseJson = try? JSONSerialization.jsonObject(with: data, options: .mutableContainers) as! [String: Any]
             return callback(responseJson, nil)
         }

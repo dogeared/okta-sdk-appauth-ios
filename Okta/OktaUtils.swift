@@ -30,7 +30,6 @@ open class Utils: NSObject {
                     options: [],
                      format: nil
                 ) as? [String: Any] {
-                    OktaAuth.configuration = result
                     return result
             }
         }

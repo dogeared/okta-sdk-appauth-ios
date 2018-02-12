@@ -12,38 +12,36 @@
 
 public struct Revoke {
 
-    var token: String?
-
     init(token: String?, callback: @escaping ([String: Any]?, OktaError?) -> Void) {
-        self.token = token
-
         // Revoke the token
         if let revokeEndpoint = getRevokeEndpoint() {
-            // Build introspect request
+            guard let token = token else {
+                callback(nil, .error(error: "Missing Bearer token."))
+                return
+            }
 
+            // Build introspect request
             let headers = [
                 "Accept": "application/json",
                 "Content-Type": "application/x-www-form-urlencoded"
             ]
-
-            let data = "token=\(self.token!)&client_id=\(OktaAuth.configuration?["clientId"] as! String)"
-
+            let data = "token=\(token)&client_id=\(OktaAuth.configuration?["clientId"] as! String)"
             OktaApi.post(revokeEndpoint, headers: headers, postData: data) { response, error in callback(response, error) }
-
         } else {
             callback(nil, .error(error: "Error finding the revocation endpoint"))
         }
-
     }
 
     func getRevokeEndpoint() -> URL? {
         // Get the revocation endpoint from the discovery URL, or build it
-
-        if let discoveryEndpoint = OktaAuth.tokens?.authState?.lastAuthorizationResponse.request.configuration.discoveryDocument?.discoveryDictionary["revocation_endpoint"] {
-            return URL(string: discoveryEndpoint as! String)
+        if let revokeEndpoint = OktaAuth.wellKnown?["revocation_endpoint"] {
+            return URL(string: revokeEndpoint as! String )
         }
 
         let issuer = OktaAuth.configuration?["issuer"] as! String
+        if issuer.range(of: "oauth2") != nil {
+            return URL(string: Utils.removeTrailingSlash(issuer) + "/v1/revoke")
+        }
         return URL(string: Utils.removeTrailingSlash(issuer) + "/oauth2/v1/revoke")
     }
 }

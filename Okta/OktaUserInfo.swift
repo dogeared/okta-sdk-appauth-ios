@@ -19,30 +19,32 @@ public struct UserInfo {
 
         // Revoke the token
         if let userInfoEndpoint = getUserInfoEndpoint() {
+            guard let token = token else {
+                callback(nil, .error(error: "Missing Bearer token."))
+                return
+            }
             // Build introspect request
-
             let headers = [
                 "Accept": "application/json",
                 "Content-Type": "application/x-www-form-urlencoded",
-                "Authorization": "Bearer \(self.token!)"
+                "Authorization": "Bearer \(token)"
             ]
-
             OktaApi.post(userInfoEndpoint, headers: headers, postData: nil) { response, error in callback(response, error) }
-
         } else {
             callback(nil, .error(error: "Error finding the userinfo endpoint"))
         }
-
     }
 
     func getUserInfoEndpoint() -> URL? {
         // Get the introspection endpoint from the discovery URL, or build it
-
-        if let discoveryEndpoint = OktaAuth.tokens?.authState?.lastAuthorizationResponse.request.configuration.discoveryDocument?.userinfoEndpoint {
-            return discoveryEndpoint
+        if let userInfoEndpoint = OktaAuth.wellKnown?["userinfo_endpoint"] {
+            return URL(string: userInfoEndpoint as! String )
         }
 
         let issuer = OktaAuth.configuration?["issuer"] as! String
+        if issuer.range(of: "oauth2") != nil {
+            return URL(string: Utils.removeTrailingSlash(issuer) + "/v1/userinfo")
+        }
         return URL(string: Utils.removeTrailingSlash(issuer) + "/oauth2/v1/userinfo")
     }
 }
